@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>地震波チェッカー：波のかけっこシミュレーター</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* 教育現場標準のUDフォント */
+    @import url('https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap');
+    
+    html, body {
+      width: 100%; height: 100%; margin: 0; padding: 0;
+      font-family: 'BIZ UDPGothic', sans-serif;
+      background-color: #0f172a; /* Slate-900 */
+      color: #f8fafc;
+      overflow: hidden; 
+      overscroll-behavior: none; 
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* 1画面に強制収容するためのルートコンテナ */
+    #app-root {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      display: flex; flex-direction: column;
+    }
+
+    /* 数字の等幅表示（ブレ防止） */
+    .num-tabular {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* UDスライダー */
+    input[type=range] {
+      -webkit-appearance: none; width: 100%; background: transparent; padding: 10px 0; margin: 0;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; height: 26px; width: 26px; border-radius: 50%;
+      background: #ffffff; cursor: pointer; margin-top: -8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.5); border: 3px solid #0ea5e9;
+      transition: transform 0.1s;
+    }
+    input[type=range]::-webkit-slider-thumb:active { transform: scale(1.15); }
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%; height: 10px; cursor: pointer; background: #334155;
+      border-radius: 5px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.6);
+    }
+    input[type=range]:disabled::-webkit-slider-thumb {
+      background: #94a3b8; border-color: #64748b; cursor: not-allowed;
+    }
+    input[type=range]:disabled::-webkit-slider-runnable-track {
+      background: #1e293b; cursor: not-allowed;
+    }
+
+    /* スクロールバー非表示 */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    /* P波（スカイブルー）、S波（オレンジ）のUDカラー定義 */
+    .text-pwave { color: #38bdf8; } /* Tailwind sky-400 */
+    .bg-pwave { background-color: #38bdf8; }
+    .border-pwave { border-color: #38bdf8; }
+    
+    .text-swave { color: #f97316; } /* Tailwind orange-500 */
+    .bg-swave { background-color: #f97316; }
+    .border-swave { border-color: #f97316; }
+
+    .highlight-sp { background-color: rgba(253, 224, 71, 0.25); } /* Yellow-300 */
+  </style>
+</head>
+<body class="h-[100dvh] w-screen">
+
+<div id="app-root">
+  
+  <!-- ヘッダー -->
+  <header class="bg-slate-800 border-b border-slate-700 p-2 flex justify-between items-center shrink-0 z-20">
+    <div class="flex items-center space-x-2">
+      <div class="w-7 h-7 rounded bg-blue-600 flex items-center justify-center shadow">
+        <i class="fa-solid fa-satellite-dish text-white text-xs"></i>
+      </div>
+      <h1 class="text-sm md:text-base font-bold tracking-wide">地震波チェッカー</h1>
+    </div>
+    <!-- モード切替タブ -->
+    <div class="flex bg-slate-900 rounded p-1 border border-slate-700">
+      <button id="tab-normal" onclick="setMode('normal')" class="px-3 py-1 text-xs font-bold rounded bg-blue-500 text-white shadow">探究モード</button>
+      <button id="tab-quiz" onclick="setMode('quiz')" class="px-3 py-1 text-xs font-bold rounded text-slate-400 hover:text-white transition">逆探知クイズ</button>
+    </div>
+  </header>
+
+  <!-- メインレイアウト（レスポンシブ：PC/iPad横は左右分割、スマホは上下積み上げ） -->
+  <div class="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
+    
+    <!-- 左カラム：ビジュアルエリア（Canvasアニメ ＆ 地震計） -->
+    <div class="flex-1 flex flex-col min-w-0 min-h-0 border-r border-slate-800 relative bg-[#020617]">
+      
+      <!-- 上段：地下断面・波のかけっこアニメーション -->
+      <div class="flex-[3] relative min-h-0 border-b border-slate-700">
+        <canvas id="canvas-main" class="w-full h-full block touch-none"></canvas>
+        <!-- 凡例と速度設定表示 -->
+        <div class="absolute top-2 left-2 bg-slate-900/80 backdrop-blur border border-slate-700 p-1.5 rounded shadow text-[10px] font-bold">
+          <div class="flex items-center space-x-2 mb-1">
+            <span class="w-2 h-2 bg-pwave rounded-sm"></span><span class="text-pwave">P波 (6.0 km/s)</span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <span class="w-2 h-2 bg-swave rounded-full"></span><span class="text-swave">S波 (3.0 km/s)</span>
+          </div>
+        </div>
+        <!-- タイマー表示（大きく） -->
+        <div class="absolute top-2 right-2 bg-slate-900/90 border border-slate-700 px-3 py-1 rounded shadow text-center">
+          <div class="text-[9px] text-slate-400">経過時間</div>
+          <div class="text-xl font-bold num-tabular"><span id="display-time">0.0</span><span class="text-xs text-slate-500 ml-1">秒</span></div>
+        </div>
+      </div>
+
+      <!-- 中段：リアルタイム地震計モニター -->
+      <div class="flex-[2] relative min-h-0 bg-slate-900">
+        <div class="absolute top-0 left-0 w-full px-2 py-1 flex justify-between items-center bg-slate-800/80 border-b border-slate-700 z-10 text-[10px] font-bold">
+          <span class="text-slate-300"><i class="fa-solid fa-wave-square mr-1"></i>地震計モニター (観測地点)</span>
+          <span class="text-yellow-400 hidden" id="label-sp-time">初期微動継続時間: <span id="val-sp-time" class="num-tabular font-bold text-sm">--</span> 秒</span>
+        </div>
+        <canvas id="canvas-seismo" class="w-full h-full block touch-none"></canvas>
+      </div>
+      
+    </div>
+
+    <!-- 右カラム：コントロール＆データパネル -->
+    <div class="w-full lg:w-[380px] flex flex-col shrink-0 min-h-0 bg-slate-800">
+      
+      <!-- コントロールパネル -->
+      <div class="p-3 border-b border-slate-700 space-y-3 shrink-0 bg-slate-800">
+        
+        <!-- 距離スライダー（探究モードのみ） -->
+        <div id="control-distance">
+          <div class="flex justify-between items-end mb-1">
+            <label class="text-xs font-bold text-slate-300">震源からの距離</label>
+            <div class="bg-slate-950 px-2 py-0.5 rounded border border-slate-700">
+              <span id="val-dist" class="text-base font-bold text-white num-tabular">120</span><span class="text-[10px] text-slate-400 ml-1">km</span>
+            </div>
+          </div>
+          <input type="range" id="range-dist" min="30" max="300" step="30" value="120">
+        </div>
+
+        <!-- クイズモード時のお知らせ -->
+        <div id="control-quiz" class="hidden bg-indigo-900/30 border border-indigo-500/50 p-2 rounded text-center">
+          <p class="text-xs font-bold text-indigo-300 mb-1">謎の観測地点 X からのデータ受信</p>
+          <p class="text-[10px] text-slate-300">地震計の波形を読み取り、距離を当てよう！</p>
+        </div>
+
+        <!-- 制御ボタン群 -->
+        <div class="flex space-x-2">
+          <button id="btn-play" class="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-2 rounded shadow transition flex items-center justify-center text-sm border border-red-500">
+            <i class="fa-solid fa-play mr-1.5"></i> 地震発生
+          </button>
+          <button id="btn-pause" class="hidden flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 rounded shadow transition flex items-center justify-center text-sm border border-amber-500">
+            <i class="fa-solid fa-pause mr-1.5"></i> 一時停止
+          </button>
+          <button id="btn-reset" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-3 rounded shadow transition">
+            <i class="fa-solid fa-rotate-left"></i>
+          </button>
+          <div class="bg-slate-900 rounded border border-slate-700 flex p-0.5 text-xs">
+            <button id="btn-spd-1" class="px-2 rounded bg-slate-700 text-white font-bold">x1</button>
+            <button id="btn-spd-05" class="px-2 rounded text-slate-400 font-bold hover:text-white">x0.5</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- データ分析エリア（スクロール可能） -->
+      <div class="flex-1 overflow-y-auto no-scrollbar flex flex-col bg-slate-900 p-2 space-y-2 relative">
+        
+        <!-- 記録ボタン (探究モード用) -->
+        <button id="btn-record" class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-2 rounded shadow transition flex items-center justify-center text-sm border border-emerald-500 shrink-0">
+          <i class="fa-solid fa-pen-to-square mr-1.5"></i> このデータを記録する
+        </button>
+
+        <!-- 解答入力 (クイズモード用) -->
+        <div id="quiz-answer-area" class="hidden bg-slate-800 border border-slate-700 p-3 rounded shrink-0 space-y-2">
+          <label class="text-xs font-bold text-slate-300">観測地点 X の距離は？</label>
+          <div class="flex space-x-2">
+            <div class="relative flex-1">
+              <input type="number" id="input-guess" class="w-full bg-slate-950 border border-slate-600 rounded px-3 py-2 text-white num-tabular text-sm" placeholder="数値を入力">
+              <span class="absolute right-3 top-2.5 text-xs text-slate-500">km</span>
+            </div>
+            <button id="btn-answer" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 rounded transition text-sm">
+              解答
+            </button>
+          </div>
+          <p id="quiz-feedback" class="text-[10px] font-bold text-center hidden"></p>
+        </div>
+
+        <!-- 記録テーブル -->
+        <div class="bg-slate-800 rounded border border-slate-700 flex flex-col shrink-0">
+          <div class="flex justify-between items-center px-2 py-1 bg-slate-700/50 border-b border-slate-600">
+            <span class="text-[10px] font-bold text-slate-300"><i class="fa-solid fa-table mr-1"></i>観測データ</span>
+            <button onclick="clearData()" class="text-[9px] text-slate-400 hover:text-white px-1 border border-slate-600 rounded bg-slate-800">クリア</button>
+          </div>
+          <table class="w-full text-center text-[10px]">
+            <thead class="text-slate-400 border-b border-slate-700 bg-slate-900/50">
+              <tr>
+                <th class="py-1 font-normal">距離(km)</th>
+                <th class="py-1 font-normal text-pwave">P波(秒)</th>
+                <th class="py-1 font-normal text-swave">S波(秒)</th>
+                <th class="py-1 font-bold text-yellow-400">S-P時間(秒)</th>
+              </tr>
+            </thead>
+            <tbody id="data-tbody" class="text-slate-200 num-tabular divide-y divide-slate-700/50">
+              <tr><td colspan="4" class="py-2 text-slate-500">記録なし</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 比例グラフ (Canvas) -->
+        <div class="bg-slate-800 rounded border border-slate-700 flex flex-col flex-1 min-h-[160px]">
+          <div class="px-2 py-1 bg-slate-700/50 border-b border-slate-600 text-[10px] font-bold text-slate-300">
+            <i class="fa-solid fa-chart-line mr-1"></i>S-P時間と距離のグラフ
+          </div>
+          <div class="flex-1 relative p-1">
+            <canvas id="canvas-graph" class="w-full h-full block"></canvas>
+            <div id="graph-hint" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <span class="bg-slate-900/80 text-[10px] text-slate-400 px-2 py-1 rounded">データを3つ以上記録すると線が出現します</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  // --- Constants ---
+  const V_P = 6.0; // P波の速さ km/s
+  const V_S = 3.0; // S波の速さ km/s
+  const MAX_DIST = 300; // km
+  const MAX_TIME = 100; // sec (300km / 3.0 = 100s)
+  
+  // 色覚UD対応カラー
+  const C_P = '#38bdf8'; // sky-400
+  const C_S = '#f97316'; // orange-500
+  const C_BG = '#020617'; 
+  const C_GRID = '#1e293b';
+  
+  // --- State ---
+  const state = {
+    mode: 'normal', // 'normal' | 'quiz'
+    distance: 120,
+    isPlaying: false,
+    isPaused: false,
+    speed: 1.0, // 1.0 or 0.5
+    time: 0,
+    lastTick: 0,
+    animFrameId: null,
+    
+    // 地震計用バッファ (時間ごとの振幅を保持)
+    seismoData: [], // {t, amp}
+    
+    // 記録データ
+    records: [], // {dist, p, s, sp}
+    
+    // クイズ用
+    quizTargetDist: 0,
+    isQuizSolved: false
+  };
+
+  // --- Elements ---
+  const elDist = document.getElementById('range-dist');
+  const valDist = document.getElementById('val-dist');
+  const btnPlay = document.getElementById('btn-play');
+  const btnPause = document.getElementById('btn-pause');
+  const btnReset = document.getElementById('btn-reset');
+  const btnSpd1 = document.getElementById('btn-spd-1');
+  const btnSpd05 = document.getElementById('btn-spd-05');
+  const btnRecord = document.getElementById('btn-record');
+  
+  const displayTime = document.getElementById('display-time');
+  const labelSpTime = document.getElementById('label-sp-time');
+  const valSpTime = document.getElementById('val-sp-time');
+  const tbody = document.getElementById('data-tbody');
+  const graphHint = document.getElementById('graph-hint');
+  
+  // クイズ関連
+  const ctrlDist = document.getElementById('control-distance');
+  const ctrlQuiz = document.getElementById('control-quiz');
+  const quizAnsArea = document.getElementById('quiz-answer-area');
+  const inputGuess = document.getElementById('input-guess');
+  const btnAnswer = document.getElementById('btn-answer');
+  const quizFeedback = document.getElementById('quiz-feedback');
+
+  const cvsMain = document.getElementById('canvas-main');
+  const ctxMain = cvsMain.getContext('2d');
+  const cvsSeismo = document.getElementById('canvas-seismo');
+  const ctxSeismo = cvsSeismo.getContext('2d');
+  const cvsGraph = document.getElementById('canvas-graph');
+  const ctxGraph = cvsGraph.getContext('2d');
+
+  // --- Initialization ---
+  function init() {
+    setupListeners();
+    resetSim();
+    resizeCanvases();
+  }
+
+  // --- Mode Switching ---
+  window.setMode = function(mode) {
+    if (state.isPlaying) resetSim();
+    state.mode = mode;
+    state.records = []; // モード切替時は記録をクリア
+    updateTable();
+    updateGraph();
+    
+    const tNorm = document.getElementById('tab-normal');
+    const tQuiz = document.getElementById('tab-quiz');
+    
+    if (mode === 'normal') {
+      tNorm.className = "px-3 py-1 text-xs font-bold rounded bg-blue-500 text-white shadow";
+      tQuiz.className = "px-3 py-1 text-xs font-bold rounded text-slate-400 hover:text-white transition";
+      ctrlDist.classList.remove('hidden');
+      ctrlQuiz.classList.add('hidden');
+      btnRecord.classList.remove('hidden');
+      quizAnsArea.classList.add('hidden');
+      
+      state.distance = parseInt(elDist.value);
+    } else {
+      tNorm.className = "px-3 py-1 text-xs font-bold rounded text-slate-400 hover:text-white transition";
+      tQuiz.className = "px-3 py-1 text-xs font-bold rounded bg-indigo-600 text-white shadow";
+      ctrlDist.classList.add('hidden');
+      ctrlQuiz.classList.remove('hidden');
+      btnRecord.classList.add('hidden');
+      quizAnsArea.classList.remove('hidden');
+      
+      generateQuiz();
+    }
+    resetSim();
+  };
+
+  function generateQuiz() {
+    // 60, 90, 120, 150, 180, 210, 240, 270 (30刻みでランダム)
+    const options = [60, 90, 120, 150, 180, 210, 240, 270];
+    state.quizTargetDist = options[Math.floor(Math.random() * options.length)];
+    state.distance = state.quizTargetDist; // 内部的には距離をセット
+    state.isQuizSolved = false;
+    
+    inputGuess.value = '';
+    quizFeedback.classList.add('hidden');
+    inputGuess.disabled = false;
+    btnAnswer.disabled = false;
+  }
+
+  // --- Event Listeners ---
+  function setupListeners() {
+    elDist.addEventListener('input', (e) => {
+      state.distance = parseInt(e.target.value);
+      valDist.innerText = state.distance;
+      if (state.isPlaying) resetSim();
+      drawMain();
+    });
+
+    btnPlay.addEventListener('click', () => {
+      if (!state.isPlaying) {
+        startSim();
+      }
+    });
+
+    btnPause.addEventListener('click', () => {
+      state.isPaused = !state.isPaused;
+      if (state.isPaused) {
+        btnPause.innerHTML = '<i class="fa-solid fa-play mr-1.5"></i> 再開';
+        btnPause.className = "flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded shadow transition flex items-center justify-center text-sm border border-emerald-500";
+      } else {
+        btnPause.innerHTML = '<i class="fa-solid fa-pause mr-1.5"></i> 一時停止';
+        btnPause.className = "flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 rounded shadow transition flex items-center justify-center text-sm border border-amber-500";
+        // 再開時にlastTickが古いままだとジャンプするため、次フレームで現在時刻を取得させる
+        requestAnimationFrame((now) => {
+          state.lastTick = now;
+          loop(now);
+        });
+      }
+    });
+
+    btnReset.addEventListener('click', resetSim);
+
+    btnSpd1.addEventListener('click', () => setSpeed(1.0));
+    btnSpd05.addEventListener('click', () => setSpeed(0.5));
+
+    btnRecord.addEventListener('click', () => {
+      if (state.time === 0) return;
+      const tP = state.distance / V_P;
+      const tS = state.distance / V_S;
+      const tSP = tS - tP;
+      
+      // 重複チェック
+      if (!state.records.some(r => r.dist === state.distance)) {
+        state.records.push({ dist: state.distance, p: tP, s: tS, sp: tSP });
+        // 距離順にソート
+        state.records.sort((a, b) => a.dist - b.dist);
+        updateTable();
+        updateGraph();
+      }
+    });
+
+    btnAnswer.addEventListener('click', () => {
+      const guess = parseInt(inputGuess.value);
+      if (isNaN(guess)) {
+        quizFeedback.classList.remove('hidden');
+        quizFeedback.innerText = "数値を入力してください";
+        quizFeedback.className = "text-[11px] font-bold text-center text-amber-400 bg-amber-900/30 p-2 rounded";
+        return;
+      }
+      
+      quizFeedback.classList.remove('hidden');
+      if (guess === state.quizTargetDist) {
+        quizFeedback.innerText = "🎉 正解！波形から正確に距離を導き出せました！";
+        quizFeedback.className = "text-[11px] font-bold text-center text-emerald-400 bg-emerald-900/30 p-2 rounded";
+        state.isQuizSolved = true;
+        inputGuess.disabled = true;
+        btnAnswer.disabled = true;
+        
+        // 正解したらグラフにプロット (重複チェック)
+        const tP = state.distance / V_P;
+        const tS = state.distance / V_S;
+        if (!state.records.some(r => r.dist === state.distance)) {
+          state.records.push({ dist: state.distance, p: tP, s: tS, sp: tS - tP });
+          state.records.sort((a, b) => a.dist - b.dist);
+        }
+        updateTable();
+        updateGraph();
+        drawMain(); // ?アイコンを学校アイコンに更新させる
+      } else {
+        quizFeedback.innerText = "❌ 違うみたいだ。S-P時間をもう一度よく測って、グラフと見比べてみよう。";
+        quizFeedback.className = "text-[11px] font-bold text-center text-red-400 bg-red-900/30 p-2 rounded";
+      }
+    });
+  }
+
+  function setSpeed(spd) {
+    state.speed = spd;
+    if (spd === 1.0) {
+      btnSpd1.className = "px-2 rounded bg-slate-700 text-white font-bold";
+      btnSpd05.className = "px-2 rounded text-slate-400 font-bold hover:text-white";
+    } else {
+      btnSpd05.className = "px-2 rounded bg-slate-700 text-white font-bold";
+      btnSpd1.className = "px-2 rounded text-slate-400 font-bold hover:text-white";
+    }
+  }
+
+  window.clearData = function() {
+    state.records = [];
+    updateTable();
+    updateGraph();
+  };
+
+  // --- Simulation Control ---
+  function startSim() {
+    state.isPlaying = true;
+    state.isPaused = false;
+    state.time = 0;
+    state.seismoData = [];
+    
+    elDist.disabled = true;
+    btnPlay.classList.add('hidden');
+    btnPause.classList.remove('hidden');
+    btnPause.innerHTML = '<i class="fa-solid fa-pause mr-1.5"></i> 一時停止';
+    btnPause.className = "flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 rounded shadow transition flex items-center justify-center text-sm border border-amber-500";
+    
+    labelSpTime.classList.add('hidden');
+    
+    // アニメーション開始時に正確な初期時間をセットする
+    requestAnimationFrame((now) => {
+      state.lastTick = now;
+      state.animFrameId = requestAnimationFrame(loop);
+    });
+  }
+
+  function resetSim() {
+    state.isPlaying = false;
+    state.isPaused = false;
+    state.time = 0;
+    state.seismoData = [];
+    cancelAnimationFrame(state.animFrameId);
+    
+    elDist.disabled = false;
+    btnPlay.classList.remove('hidden');
+    btnPause.classList.add('hidden');
+    
+    displayTime.innerText = "0.0";
+    labelSpTime.classList.add('hidden');
+    
+    drawMain();
+    drawSeismo();
+  }
+
+  function loop(now) {
+    if (!state.isPlaying || state.isPaused) return;
+
+    // deltaTime計算 (タブのバックグラウンド化による時間ジャンプを防ぐためのキャップ付き)
+    let dtReal = (now - state.lastTick) / 1000;
+    if (dtReal > 0.1) dtReal = 0.1; // 最大0.1秒(100ms)に制限してワープを防止
+    const dtSim = dtReal * 10 * state.speed; 
+    state.time += dtSim;
+    state.lastTick = now;
+
+    // 地震計のデータ生成
+    generateSeismoData();
+
+    // S-P時間のハイライト判定
+    checkArrivals();
+
+    // 描画
+    drawMain();
+    drawSeismo();
+
+    // 終了判定（波が完全に通り過ぎるまで、またはMAX_TIME）
+    const endTime = (state.distance / V_S) + 20; 
+    if (state.time > Math.min(endTime, MAX_TIME)) {
+      state.time = Math.min(endTime, MAX_TIME);
+      drawMain();
+      drawSeismo();
+      state.isPlaying = false;
+      btnPlay.classList.remove('hidden');
+      btnPause.classList.add('hidden');
+      elDist.disabled = false;
+      return;
+    }
+
+    state.animFrameId = requestAnimationFrame(loop);
+  }
+
+  function generateSeismoData() {
+    const t = state.time;
+    const tP = state.distance / V_P;
+    const tS = state.distance / V_S;
+    
+    let amp = 0;
+    // P波到着前 (微小なノイズ)
+    if (t < tP) {
+      amp = (Math.random() - 0.5) * 0.5;
+    } 
+    // 初期微動 (P〜S)
+    else if (t >= tP && t < tS) {
+      amp = (Math.random() - 0.5) * 8; // カタカタ
+    } 
+    // 主要動 (S以降)
+    else {
+      // 減衰関数
+      const decay = Math.max(0, 1 - (t - tS) / 15);
+      amp = (Math.random() - 0.5) * 30 * decay; // ガタガタ
+      if (amp === 0) amp = (Math.random() - 0.5) * 1; // 残留ノイズ
+    }
+    
+    state.seismoData.push({ t: t, amp: amp });
+  }
+
+  function checkArrivals() {
+    const tP = state.distance / V_P;
+    const tS = state.distance / V_S;
+    
+    displayTime.innerText = state.time.toFixed(1);
+    
+    if (state.time >= tS) {
+      // S波到着で確定値を表示
+      labelSpTime.classList.remove('hidden');
+      valSpTime.innerText = (tS - tP).toFixed(1);
+    } else if (state.time >= tP) {
+      // P波到着中はカウントアップ
+      labelSpTime.classList.remove('hidden');
+      valSpTime.innerText = (state.time - tP).toFixed(1);
+    }
+  }
+
+  // --- Rendering Functions ---
+  function resizeCanvases() {
+    const dpr = window.devicePixelRatio || 1;
+    
+    [cvsMain, cvsSeismo, cvsGraph].forEach(cvs => {
+      const rect = cvs.parentElement.getBoundingClientRect();
+      // 幅や高さが0の場合はスキップしてエラーを防ぐ
+      if(rect.width === 0 || rect.height === 0) return;
+      cvs.width = rect.width * dpr;
+      cvs.height = rect.height * dpr;
+      const ctx = cvs.getContext('2d');
+      ctx.scale(dpr, dpr);
+    });
+    
+    drawMain();
+    drawSeismo();
+    updateGraph();
+  }
+
+  window.addEventListener('resize', () => {
+    clearTimeout(state.resizeTimer);
+    state.resizeTimer = setTimeout(resizeCanvases, 100);
+  });
+
+  // 【上段】メインアニメーション描画
+  function drawMain() {
+    const w = cvsMain.width / window.devicePixelRatio;
+    const h = cvsMain.height / window.devicePixelRatio;
+    const ctx = ctxMain;
+    
+    ctx.clearRect(0, 0, w, h);
+
+    // 座標設定: 左下が震源(0,0)、右上が遠方
+    const pad = 30;
+    const drawW = w - pad * 2;
+    const drawH = h - pad * 2;
+    
+    // スケール計算 (MAX_DIST = 300km)
+    const scale = drawW / MAX_DIST;
+    
+    const originX = pad;
+    const originY = h - pad;
+
+    // グリッド線
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 1;
+    for(let d=0; d<=MAX_DIST; d+=30) {
+      const x = originX + d * scale;
+      ctx.beginPath(); ctx.moveTo(x, pad); ctx.lineTo(x, originY); ctx.stroke();
+      if (d % 60 === 0) {
+        ctx.fillStyle = '#64748b';
+        ctx.font = '10px BIZ UDPGothic';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${d}km`, x, originY + 15);
+      }
+    }
+
+    // 震央〜観測地点の「かけっこライン（道）」
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(originX, originY);
+    ctx.lineTo(originX + MAX_DIST * scale, originY);
+    ctx.stroke();
+
+    // 震源アイコン
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath(); ctx.arc(originX, originY, 6, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ef4444'; ctx.textAlign = 'right'; ctx.font = 'bold 12px BIZ UDPGothic';
+    ctx.fillText('震源', originX - 8, originY + 4);
+
+    // 観測地点（学校）アイコン
+    const targetX = originX + state.distance * scale;
+    // 揺れ計算 (アイコン用)
+    let sX = targetX;
+    let sY = originY - 15;
+    if (state.isPlaying && !state.isPaused) {
+      const tP = state.distance / V_P;
+      const tS = state.distance / V_S;
+      if (state.time >= tS) {
+        sX += (Math.random()-0.5)*4; sY += (Math.random()-0.5)*4; // ガタガタ
+      } else if (state.time >= tP) {
+        sX += (Math.random()-0.5)*1.5; sY += (Math.random()-0.5)*1.5; // カタカタ
+      }
+    }
+    
+    // アイコン描画
+    ctx.font = '24px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    // クイズモードで未解答の場合は「？」、それ以外は学校
+    if (state.mode === 'quiz' && !state.isQuizSolved) {
+      ctx.fillStyle = '#a855f7';
+      ctx.fillText('❓', sX, sY);
+      ctx.font = '10px BIZ UDPGothic';
+      ctx.fillText('距離不明', sX, sY - 26);
+    } else {
+      ctx.fillText('🏫', sX, sY);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '10px BIZ UDPGothic';
+      ctx.fillText(`${state.distance}km`, sX, sY - 26);
+    }
+    
+    // ライン上の到達目標ピン
+    ctx.fillStyle = '#eab308';
+    ctx.beginPath(); ctx.arc(targetX, originY, 4, 0, Math.PI*2); ctx.fill();
+
+    // 波の進行描画
+    if (state.time > 0) {
+      const dP = Math.min(state.time * V_P, MAX_DIST);
+      const dS = Math.min(state.time * V_S, MAX_DIST);
+      
+      const px = originX + dP * scale;
+      const sx = originX + dS * scale;
+
+      // P波・S波の同心円（一部）
+      ctx.beginPath();
+      ctx.arc(originX, originY, dP * scale, -Math.PI/2, 0);
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)'; ctx.lineWidth = 2; ctx.stroke();
+      
+      ctx.beginPath();
+      ctx.arc(originX, originY, dS * scale, -Math.PI/2, 0);
+      ctx.strokeStyle = 'rgba(249, 115, 22, 0.4)'; ctx.lineWidth = 3; ctx.stroke();
+
+      // ランナーアイコン（波の先頭）
+      // P波ランナー
+      ctx.fillStyle = C_P;
+      ctx.beginPath(); ctx.moveTo(px, originY); ctx.lineTo(px-6, originY-10); ctx.lineTo(px+6, originY-10); ctx.fill();
+      ctx.fillStyle = C_P; ctx.font = 'bold 12px Orbitron'; ctx.textAlign = 'center';
+      ctx.fillText('P', px, originY - 14);
+
+      // S波ランナー
+      ctx.fillStyle = C_S;
+      ctx.beginPath(); ctx.moveTo(sx, originY); ctx.lineTo(sx-6, originY-10); ctx.lineTo(sx+6, originY-10); ctx.fill();
+      ctx.fillStyle = C_S; ctx.font = 'bold 12px Orbitron'; ctx.textAlign = 'center';
+      ctx.fillText('S', sx, originY - 14);
+
+      // かけっこ差分のハイライト帯 (道の上)
+      if (px > sx) {
+        ctx.fillStyle = 'rgba(253, 224, 71, 0.3)'; // yellow
+        ctx.fillRect(sx, originY - 3, px - sx, 6);
+      }
+    }
+  }
+
+  // 【中段】地震計の描画（左から右へ波形を描く）
+  function drawSeismo() {
+    const w = cvsSeismo.width / window.devicePixelRatio;
+    const h = cvsSeismo.height / window.devicePixelRatio;
+    const ctx = ctxSeismo;
+    
+    ctx.clearRect(0, 0, w, h);
+
+    const padX = 30;
+    const padY = 20;
+    const drawW = w - padX * 2;
+    const drawH = h - padY * 2;
+    
+    const scaleX = drawW / MAX_TIME; // X軸は0〜100秒固定
+    const originX = padX;
+    const originY = h / 2;
+
+    // グリッド線
+    ctx.lineWidth = 1;
+    for(let t=0; t<=MAX_TIME; t+=10) {
+      const x = originX + t * scaleX;
+      ctx.strokeStyle = (t % 20 === 0) ? '#334155' : '#1e293b';
+      ctx.beginPath(); ctx.moveTo(x, padY); ctx.lineTo(x, h - padY); ctx.stroke();
+      if (t % 20 === 0) {
+        ctx.fillStyle = '#64748b'; ctx.font = '9px BIZ UDPGothic'; ctx.textAlign = 'center';
+        ctx.fillText(`${t}s`, x, h - 5);
+      }
+    }
+
+    // S-P時間ハイライト（背景黄色）
+    const tP = state.distance / V_P;
+    const tS = state.distance / V_S;
+    
+    if (state.time > tP) {
+      const endT = Math.min(state.time, tS);
+      const hX = originX + tP * scaleX;
+      const hW = (endT - tP) * scaleX;
+      ctx.fillStyle = 'rgba(253, 224, 71, 0.15)';
+      ctx.fillRect(hX, padY, hW, drawH);
+    }
+
+    // P, S 到達ライン
+    if (state.time >= tP) {
+      const px = originX + tP * scaleX;
+      ctx.strokeStyle = C_P; ctx.beginPath(); ctx.moveTo(px, padY); ctx.lineTo(px, h-padY); ctx.stroke();
+      ctx.fillStyle = C_P; ctx.fillText('P', px, padY - 5);
+    }
+    if (state.time >= tS) {
+      const sx = originX + tS * scaleX;
+      ctx.strokeStyle = C_S; ctx.beginPath(); ctx.moveTo(sx, padY); ctx.lineTo(sx, h-padY); ctx.stroke();
+      ctx.fillStyle = C_S; ctx.fillText('S', sx, padY - 5);
+    }
+
+    // 中心線
+    ctx.strokeStyle = '#334155'; ctx.beginPath(); ctx.moveTo(originX, originY); ctx.lineTo(originX + drawW, originY); ctx.stroke();
+
+    // 波形描画
+    if (state.seismoData.length > 0) {
+      ctx.strokeStyle = '#10b981'; // emerald-500
+      ctx.lineWidth = 1.5;
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      
+      // 0秒からスタート
+      ctx.moveTo(originX, originY);
+      
+      for(let i=0; i<state.seismoData.length; i++) {
+        const d = state.seismoData[i];
+        if (d.t > MAX_TIME) break;
+        const x = originX + d.t * scaleX;
+        // 振幅が枠をはみ出ないようにクリップ
+        const y = Math.max(padY, Math.min(h - padY, originY + d.amp));
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // ペン先（現在位置）
+      const last = state.seismoData[state.seismoData.length - 1];
+      if (last && last.t <= MAX_TIME) {
+        const lx = originX + last.t * scaleX;
+        const ly = Math.max(padY, Math.min(h - padY, originY + last.amp));
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(lx, ly, 2, 0, Math.PI*2); ctx.fill();
+      }
+    }
+  }
+
+  // --- Data Table & Graph ---
+  function updateTable() {
+    if (state.records.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="py-2 text-slate-500 text-[10px]">記録なし</td></tr>';
+      graphHint.classList.remove('hidden');
+      return;
+    }
+    
+    graphHint.classList.add('hidden');
+    tbody.innerHTML = state.records.map(r => `
+      <tr class="hover:bg-slate-700/50 transition">
+        <td class="py-1.5">${r.dist}</td>
+        <td class="py-1.5 text-pwave">${r.p.toFixed(1)}</td>
+        <td class="py-1.5 text-swave">${r.s.toFixed(1)}</td>
+        <td class="py-1.5 text-yellow-400 font-bold">${r.sp.toFixed(1)}</td>
+      </tr>
+    `).join('');
+  }
+
+  function updateGraph() {
+    const w = cvsGraph.width / window.devicePixelRatio;
+    const h = cvsGraph.height / window.devicePixelRatio;
+    const ctx = ctxGraph;
+    
+    ctx.clearRect(0, 0, w, h);
+
+    const padL = 30, padR = 10, padT = 10, padB = 20;
+    const drawW = w - padL - padR;
+    const drawH = h - padT - padB;
+    
+    const maxX = 50; // S-P時間の最大 (300km時で50s)
+    const maxY = 300; // 距離の最大 300km
+
+    const originX = padL;
+    const originY = h - padB;
+
+    function getPt(sp, dist) {
+      return {
+        x: originX + (sp / maxX) * drawW,
+        y: originY - (dist / maxY) * drawH
+      };
+    }
+
+    // 軸とグリッド
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#64748b'; ctx.font = '9px BIZ UDPGothic';
+    
+    // Y軸 (距離)
+    for(let d=0; d<=maxY; d+=100) {
+      const pt = getPt(0, d);
+      ctx.strokeStyle = '#1e293b'; ctx.beginPath(); ctx.moveTo(pt.x, pt.y); ctx.lineTo(pt.x + drawW, pt.y); ctx.stroke();
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      ctx.fillText(d, pt.x - 4, pt.y);
+    }
+    
+    // X軸 (S-P時間)
+    for(let t=0; t<=maxX; t+=10) {
+      const pt = getPt(t, 0);
+      ctx.strokeStyle = '#1e293b'; ctx.beginPath(); ctx.moveTo(pt.x, pt.y); ctx.lineTo(pt.x, pt.y - drawH); ctx.stroke();
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillText(t, pt.x, pt.y + 4);
+    }
+
+    // 軸線
+    ctx.strokeStyle = '#475569';
+    ctx.beginPath(); ctx.moveTo(originX, originY); ctx.lineTo(originX + drawW, originY); ctx.stroke(); // X
+    ctx.beginPath(); ctx.moveTo(originX, originY); ctx.lineTo(originX, originY - drawH); ctx.stroke(); // Y
+
+    // 3点以上で比例直線を引く (y = 6x)
+    if (state.records.length >= 3) {
+      ctx.strokeStyle = 'rgba(253, 224, 71, 0.4)'; // yellow
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      const p0 = getPt(0, 0);
+      const pMax = getPt(50, 300); // 300km = 6 * 50s
+      ctx.moveTo(p0.x, p0.y);
+      ctx.lineTo(pMax.x, pMax.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      
+      // 式の表示
+      ctx.fillStyle = '#fde047'; ctx.font = '10px BIZ UDPGothic'; ctx.textAlign = 'left';
+      ctx.fillText('距離 = 6 × S-P時間', p0.x + 10, padT + 10);
+    }
+
+    // プロット点
+    state.records.forEach(r => {
+      const pt = getPt(r.sp, r.dist);
+      // クイズの答えの点は色を変える
+      const isQuizAns = (state.mode === 'quiz' && r.dist === state.quizTargetDist);
+      ctx.fillStyle = isQuizAns ? '#a855f7' : '#10b981'; // purple or emerald
+      ctx.beginPath(); ctx.arc(pt.x, pt.y, 4, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
+    });
+  }
+
+  // --- Init Call ---
+  init();
+
+});
+</script>
+</body>
+</html>
