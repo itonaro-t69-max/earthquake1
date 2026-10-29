@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>地震波チェッカー：波のかけっこシミュレーター v2.0.1</title>
+  <title>地震波チェッカー：波のかけっこシミュレーター v2.0.2</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -94,7 +94,7 @@
       <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sky-400 to-blue-600"></div>
       
       <div class="text-center mb-6">
-        <h2 class="text-xl md:text-2xl font-bold text-white tracking-widest mb-1">地震波チェッカー <span class="text-sm text-sky-400 font-mono">v2.0.1</span></h2>
+        <h2 class="text-xl md:text-2xl font-bold text-white tracking-widest mb-1">地震波チェッカー <span class="text-sm text-sky-400 font-mono">v2.0.2</span></h2>
         <p class="text-xs text-slate-400">〜 波のかけっこシミュレーター 〜</p>
       </div>
 
@@ -137,6 +137,24 @@
     </div>
   </div>
 
+  <!-- ==================== ヒント モーダル ==================== -->
+  <div id="hint-modal" class="hidden absolute inset-0 z-[150] modal-overlay flex items-center justify-center p-4">
+    <div class="bg-slate-800 border border-amber-500/50 p-6 rounded-xl shadow-[0_0_30px_rgba(245,158,11,0.2)] w-full max-w-sm relative">
+      <button onclick="closeHint()" class="absolute top-3 right-3 text-slate-400 hover:text-white cursor-pointer">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+      <h3 class="text-lg font-bold text-amber-400 mb-4"><i class="fa-solid fa-lightbulb mr-2"></i>解き方のヒント</h3>
+      <ol class="text-xs text-slate-300 space-y-3 list-decimal list-inside leading-relaxed">
+        <li>下の<strong>地震計モニター</strong>を見て、P波(青)からS波(赤)までの<strong>S-P時間</strong>を目盛りから読み取ろう。（※黄色い帯の長さを数えるよ）</li>
+        <li>探究モードで見つけたグラフの式 <strong>「距離 ＝ 6 × S-P時間」</strong> を思い出そう。</li>
+        <li>読み取った時間を式に当てはめて計算すれば、観測地点までの距離がわかるよ！</li>
+      </ol>
+      <button onclick="closeHint()" class="mt-5 w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 rounded transition cursor-pointer">
+        わかった！
+      </button>
+    </div>
+  </div>
+
   <!-- ヘッダー -->
   <header class="bg-slate-800 border-b border-slate-700 p-2 flex justify-between items-center shrink-0 z-20">
     <div class="flex items-center space-x-3">
@@ -145,7 +163,7 @@
       </div>
       <div>
         <h1 class="text-sm font-bold tracking-wide">地震波チェッカー</h1>
-        <p class="text-[9px] text-slate-400 font-mono">v2.0.1</p>
+        <p class="text-[9px] text-slate-400 font-mono">v2.0.2</p>
       </div>
     </div>
     <!-- モード切替タブ -->
@@ -242,13 +260,16 @@
         </div>
 
         <!-- クイズモード時のお知らせ -->
-        <div id="control-quiz" class="hidden bg-indigo-900/30 border border-indigo-500/50 p-3 rounded text-center">
+        <div id="control-quiz" class="hidden bg-indigo-900/30 border border-indigo-500/50 p-3 rounded text-center flex flex-col items-center">
           <p class="text-sm font-bold text-indigo-300 mb-2"><i class="fa-solid fa-satellite-dish mr-1"></i>逆探知クイズ実行中</p>
-          <p class="text-[10px] lg:text-[11px] text-slate-300 leading-relaxed text-left inline-block">
+          <p class="text-[10px] lg:text-[11px] text-slate-300 leading-relaxed text-left mb-3 w-full">
             ・地震計波形からS-P時間を読み取ろう。<br>
             ・グラフを使って「震源距離」を割り出そう。<br>
             <span class="text-amber-400/80 text-[9px] lg:text-[10px] mt-1 block">※中学生の学習範囲に合わせ、クイズ中は深さを 0km に固定して出題されます。</span>
           </p>
+          <button onclick="openHint()" class="bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold py-1.5 px-4 rounded-full shadow transition flex items-center cursor-pointer">
+            <i class="fa-solid fa-question-circle mr-1.5"></i> ヒントを見る
+          </button>
         </div>
 
         <!-- 制御ボタン群 -->
@@ -423,12 +444,20 @@ document.addEventListener('DOMContentLoaded', () => {
     resizeCanvases();
   }
 
-  // --- Tutorial ---
+  // --- Tutorial & Modals ---
   window.closeTutorial = function() {
     tutorialModal.classList.add('opacity-0');
     setTimeout(() => {
       tutorialModal.classList.add('hidden');
     }, 500);
+  };
+
+  window.openHint = function() {
+    document.getElementById('hint-modal').classList.remove('hidden');
+  };
+  
+  window.closeHint = function() {
+    document.getElementById('hint-modal').classList.add('hidden');
   };
 
   // --- Mode Switching & Authentication ---
@@ -472,7 +501,7 @@ document.addEventListener('DOMContentLoaded', () => {
       tNorm.className = "px-3 py-1.5 text-xs font-bold rounded bg-blue-500 text-white shadow transition cursor-pointer";
       tQuiz.className = "px-3 py-1.5 text-xs font-bold rounded text-slate-400 hover:text-white transition cursor-pointer";
       
-      sliderDepthContainer.classList.remove('hidden');
+      ctrlSliders.classList.remove('hidden');
       ctrlQuiz.classList.add('hidden');
       quizCover.classList.add('hidden');
       btnRecord.classList.remove('hidden');
@@ -484,7 +513,7 @@ document.addEventListener('DOMContentLoaded', () => {
       tNorm.className = "px-3 py-1.5 text-xs font-bold rounded text-slate-400 hover:text-white transition cursor-pointer";
       tQuiz.className = "px-3 py-1.5 text-xs font-bold rounded bg-indigo-600 text-white shadow transition cursor-pointer";
       
-      sliderDepthContainer.classList.add('hidden');
+      ctrlSliders.classList.add('hidden');
       state.depth = 0;
       elDepth.value = 0;
       valDepth.innerText = 0;
