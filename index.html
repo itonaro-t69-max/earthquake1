@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>地震波チェッカー：波のかけっこシミュレーター</title>
+  <title>地震波チェッカー：波のかけっこシミュレーター v2.0.1</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -58,20 +58,20 @@
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     
     /* P波（スカイブルー）、S波（オレンジ）のUDカラー定義 */
-    .text-pwave { color: #38bdf8; } /* Tailwind sky-400 */
+    .text-pwave { color: #38bdf8; } 
     .bg-pwave { background-color: #38bdf8; }
     .border-pwave { border-color: #38bdf8; }
     
-    .text-swave { color: #f97316; } /* Tailwind orange-500 */
+    .text-swave { color: #f97316; } 
     .bg-swave { background-color: #f97316; }
     .border-swave { border-color: #f97316; }
 
-    .highlight-sp { background-color: rgba(253, 224, 71, 0.25); } /* Yellow-300 */
+    .highlight-sp { background-color: rgba(253, 224, 71, 0.25); } 
 
     /* モーダル用 */
     .modal-overlay {
       background-color: rgba(15, 23, 42, 0.9);
-      backdrop-filter: blur(4px);
+      backdrop-filter: blur(8px);
     }
 
     /* エラーシェイク */
@@ -88,7 +88,40 @@
 
 <div id="app-root">
   
-  <!-- 合言葉モーダル -->
+  <!-- ==================== 初回チュートリアル モーダル ==================== -->
+  <div id="tutorial-modal" class="absolute inset-0 z-[100] modal-overlay flex items-center justify-center p-4 transition-opacity duration-500">
+    <div class="bg-slate-800 border border-sky-500/50 p-6 md:p-8 rounded-2xl shadow-[0_0_40px_rgba(14,165,233,0.3)] w-full max-w-lg relative overflow-hidden">
+      <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sky-400 to-blue-600"></div>
+      
+      <div class="text-center mb-6">
+        <h2 class="text-xl md:text-2xl font-bold text-white tracking-widest mb-1">地震波チェッカー <span class="text-sm text-sky-400 font-mono">v2.0.1</span></h2>
+        <p class="text-xs text-slate-400">〜 波のかけっこシミュレーター 〜</p>
+      </div>
+
+      <div class="space-y-4 mb-8">
+        <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+          <h3 class="text-sm font-bold text-sky-400 mb-2"><i class="fa-solid fa-magnifying-glass mr-2"></i>STEP 1: 探究モード</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            スライダーで「距離」を変えて地震を発生させよう。P波(青)とS波(赤)の<strong class="text-white">波のかけっこ</strong>を観察し、S-P時間を「記録」して比例グラフを完成させよう！
+          </p>
+        </div>
+        
+        <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+          <h3 class="text-sm font-bold text-indigo-400 mb-2"><i class="fa-solid fa-satellite-dish mr-2"></i>STEP 2: 逆探知クイズ</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            先生から合言葉をもらってクイズに挑戦！未知の地震計の波形からS-P時間を読み取り、<strong class="text-white">自分たちが作ったグラフを使って</strong>震源距離を当てよう！<br>
+            <span class="text-[10px] text-amber-400/80 mt-1 block">※中学生の学習範囲に合わせ、クイズ中の「深さ」は0kmに固定されます。</span>
+          </p>
+        </div>
+      </div>
+
+      <button onclick="closeTutorial()" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-3.5 rounded-lg transition-all shadow-[0_0_15px_rgba(14,165,233,0.4)] border border-sky-400/30 tracking-widest cursor-pointer">
+        システム起動
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== 合言葉 モーダル ==================== -->
   <div id="auth-modal" class="hidden absolute inset-0 z-50 modal-overlay flex items-center justify-center p-4">
     <div class="bg-slate-800 border border-slate-600 p-6 rounded-lg shadow-2xl w-full max-w-sm">
       <h3 class="text-lg font-bold text-white mb-2"><i class="fa-solid fa-lock mr-2 text-indigo-400"></i>逆探知クイズ モード</h3>
@@ -97,8 +130,8 @@
         <input type="text" id="input-password" autocomplete="off" required class="w-full bg-slate-900 border border-slate-600 rounded p-3 text-white mb-2 focus:outline-none focus:border-indigo-500 font-bold tracking-widest text-center" placeholder="合言葉">
         <p id="auth-error" class="text-xs text-red-400 font-bold hidden mb-4 text-center">合言葉が違います。</p>
         <div class="flex space-x-3 mt-4">
-          <button type="button" id="btn-auth-cancel" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded font-bold text-sm transition">キャンセル</button>
-          <button type="submit" id="btn-auth-submit" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded font-bold text-sm transition shadow-lg shadow-indigo-900/50">ロック解除</button>
+          <button type="button" onclick="closeAuthModal()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded font-bold text-sm transition cursor-pointer">キャンセル</button>
+          <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded font-bold text-sm transition shadow-lg shadow-indigo-900/50 cursor-pointer">ロック解除</button>
         </div>
       </form>
     </div>
@@ -106,16 +139,19 @@
 
   <!-- ヘッダー -->
   <header class="bg-slate-800 border-b border-slate-700 p-2 flex justify-between items-center shrink-0 z-20">
-    <div class="flex items-center space-x-2">
-      <div class="w-7 h-7 rounded bg-blue-600 flex items-center justify-center shadow">
-        <i class="fa-solid fa-satellite-dish text-white text-xs"></i>
+    <div class="flex items-center space-x-3">
+      <div class="w-8 h-8 rounded bg-blue-600 flex items-center justify-center shadow">
+        <i class="fa-solid fa-satellite-dish text-white text-sm"></i>
       </div>
-      <h1 class="text-sm md:text-base font-bold tracking-wide">地震波チェッカー</h1>
+      <div>
+        <h1 class="text-sm font-bold tracking-wide">地震波チェッカー</h1>
+        <p class="text-[9px] text-slate-400 font-mono">v2.0.1</p>
+      </div>
     </div>
     <!-- モード切替タブ -->
     <div class="flex bg-slate-900 rounded p-1 border border-slate-700">
-      <button id="tab-normal" onclick="setMode('normal')" class="px-3 py-1 text-xs font-bold rounded bg-blue-500 text-white shadow transition">探究モード</button>
-      <button id="tab-quiz" onclick="setMode('quiz')" class="px-3 py-1 text-xs font-bold rounded text-slate-400 hover:text-white transition">逆探知クイズ</button>
+      <button id="tab-normal" onclick="setMode('normal')" class="px-3 py-1.5 text-xs font-bold rounded bg-blue-500 text-white shadow transition cursor-pointer">探究モード</button>
+      <button id="tab-quiz" onclick="setMode('quiz')" class="px-3 py-1.5 text-xs font-bold rounded text-slate-400 hover:text-white transition cursor-pointer">逆探知クイズ</button>
     </div>
   </header>
 
@@ -126,31 +162,40 @@
     <div class="flex-1 flex flex-col min-w-0 min-h-0 border-r border-slate-800 relative bg-[#020617]">
       
       <!-- 上段：地下断面・波のかけっこアニメーション -->
-      <div class="flex-[3] relative min-h-0 border-b border-slate-700">
+      <div class="flex-[3] relative min-h-[200px] lg:min-h-0 border-b border-slate-700">
+        <!-- クイズ中隠すためのカバー -->
+        <div id="quiz-cover" class="hidden absolute inset-0 z-20 bg-slate-900 flex flex-col items-center justify-center p-4 text-center">
+          <i class="fa-solid fa-satellite-dish text-indigo-500 text-4xl lg:text-5xl mb-4 animate-pulse"></i>
+          <h2 class="text-base lg:text-lg font-bold text-indigo-300 tracking-widest mb-2">謎の観測地点 X データ受信中...</h2>
+          <p class="text-[10px] lg:text-xs text-slate-400 leading-relaxed">
+            下の地震計波形からS-P時間を読み取り、<br>グラフを使って震源距離を割り出せ！
+          </p>
+        </div>
+
         <canvas id="canvas-main" class="w-full h-full block touch-none"></canvas>
         
-        <!-- 凡例と速度設定表示 (クイズモード時は隠す) -->
-        <div id="legend-panel" class="absolute top-2 left-2 bg-slate-900/80 backdrop-blur border border-slate-700 p-1.5 rounded shadow text-[10px] font-bold transition-opacity">
-          <div class="flex items-center space-x-2 mb-1">
-            <span class="w-2 h-2 bg-pwave rounded-sm"></span><span class="text-pwave">P波 (6.0 km/s)</span>
+        <!-- 凡例 (クイズモード時は隠す) -->
+        <div id="legend-panel" class="absolute top-2 left-2 bg-slate-900/80 backdrop-blur border border-slate-700 p-2 rounded shadow text-[10px] lg:text-xs font-bold transition-opacity">
+          <div class="flex items-center space-x-2 mb-1.5">
+            <span class="w-2.5 h-2.5 bg-pwave rounded-sm"></span><span class="text-pwave">P波 (6.0 km/s)</span>
           </div>
           <div class="flex items-center space-x-2">
-            <span class="w-2 h-2 bg-swave rounded-full"></span><span class="text-swave">S波 (3.0 km/s)</span>
+            <span class="w-2.5 h-2.5 bg-swave rounded-full"></span><span class="text-swave">S波 (3.0 km/s)</span>
           </div>
         </div>
         
         <!-- タイマー表示 -->
-        <div class="absolute top-2 right-2 bg-slate-900/90 border border-slate-700 px-3 py-1 rounded shadow text-center">
-          <div class="text-[9px] text-slate-400">経過時間</div>
-          <div class="text-xl font-bold num-tabular"><span id="display-time">0.0</span><span class="text-xs text-slate-500 ml-1">秒</span></div>
+        <div class="absolute top-2 right-2 bg-slate-900/90 border border-slate-700 px-3 py-1.5 rounded shadow text-center z-10">
+          <div class="text-[9px] lg:text-[10px] text-slate-400">経過時間</div>
+          <div class="text-lg lg:text-xl font-bold num-tabular"><span id="display-time">0.0</span><span class="text-[10px] lg:text-xs text-slate-500 ml-1">秒</span></div>
         </div>
       </div>
 
       <!-- 中段：リアルタイム地震計モニター -->
-      <div class="flex-[2] relative min-h-0 bg-slate-900">
-        <div class="absolute top-0 left-0 w-full px-2 py-1 flex justify-between items-center bg-slate-800/80 border-b border-slate-700 z-10 text-[10px] font-bold">
-          <span class="text-slate-300"><i class="fa-solid fa-wave-square mr-1"></i>地震計モニター (観測地点)</span>
-          <!-- クイズモード時は非表示になるSP時間表示 -->
+      <div class="flex-[2] relative min-h-[150px] lg:min-h-0 bg-slate-900">
+        <div class="absolute top-0 left-0 w-full px-3 py-1.5 flex justify-between items-center bg-slate-800/90 border-b border-slate-700 z-10 text-[10px] font-bold backdrop-blur">
+          <span class="text-slate-300"><i class="fa-solid fa-wave-square mr-1.5"></i>地震計モニター (観測地点)</span>
+          <!-- クイズモード時は非表示になるSP時間表示 (カンニング防止) -->
           <span class="text-yellow-400 hidden" id="label-sp-time">初期微動継続時間: <span id="val-sp-time" class="num-tabular font-bold text-sm">--</span> 秒</span>
         </div>
         <canvas id="canvas-seismo" class="w-full h-full block touch-none"></canvas>
@@ -159,117 +204,131 @@
     </div>
 
     <!-- 右カラム：コントロール＆データパネル -->
-    <div class="w-full lg:w-[380px] flex flex-col shrink-0 min-h-0 bg-slate-800">
+    <div class="w-full lg:w-[380px] flex flex-col shrink-0 min-h-0 bg-slate-800 overflow-y-auto lg:overflow-visible">
       
       <!-- コントロールパネル -->
-      <div class="p-3 border-b border-slate-700 space-y-3 shrink-0 bg-slate-800">
+      <div class="p-4 border-b border-slate-700 space-y-4 shrink-0 bg-slate-800 relative z-10">
         
-        <!-- 距離・深さスライダー（探究モードのみ表示） -->
-        <div id="control-sliders" class="space-y-3">
+        <div id="control-sliders" class="space-y-4">
+          <!-- 距離スライダー -->
           <div>
             <div class="flex justify-between items-end mb-1">
-              <label class="text-xs font-bold text-slate-300">震央距離 (横)</label>
-              <div class="bg-slate-950 px-2 py-0.5 rounded border border-slate-700">
-                <span id="val-dist" class="text-base font-bold text-white num-tabular">120</span><span class="text-[10px] text-slate-400 ml-1">km</span>
+              <label class="text-[11px] lg:text-xs font-bold text-slate-300">震央距離 (横)</label>
+              <div class="bg-slate-950 px-2 py-1 rounded border border-slate-700">
+                <span id="val-dist" class="text-base lg:text-lg font-bold text-white num-tabular">120</span><span class="text-[10px] text-slate-400 ml-1">km</span>
               </div>
             </div>
             <input type="range" id="range-dist" min="0" max="300" step="10" value="120">
           </div>
-          <div>
+          
+          <!-- 深さスライダー (クイズ時は非表示) -->
+          <div id="slider-depth-container">
             <div class="flex justify-between items-end mb-1">
-              <label class="text-xs font-bold text-slate-300">震源の深さ (縦)</label>
-              <div class="bg-slate-950 px-2 py-0.5 rounded border border-slate-700">
-                <span id="val-depth" class="text-base font-bold text-white num-tabular">30</span><span class="text-[10px] text-slate-400 ml-1">km</span>
+              <label class="text-[11px] lg:text-xs font-bold text-slate-300">震源の深さ (縦)</label>
+              <div class="bg-slate-950 px-2 py-1 rounded border border-slate-700">
+                <span id="val-depth" class="text-base lg:text-lg font-bold text-white num-tabular">30</span><span class="text-[10px] text-slate-400 ml-1">km</span>
               </div>
             </div>
             <input type="range" id="range-depth" min="0" max="300" step="10" value="30">
           </div>
+          
           <!-- 震源距離 (斜め) の表示 -->
-          <div class="bg-yellow-900/20 border border-yellow-600/30 p-1.5 rounded flex justify-between items-center shadow-inner">
-            <span class="text-[10px] font-bold text-yellow-500">震源距離 (斜めの最短距離)</span>
+          <div class="bg-yellow-900/20 border border-yellow-600/30 p-2 rounded flex justify-between items-center shadow-inner">
+            <span class="text-[10px] lg:text-[11px] font-bold text-yellow-500">震源距離 (波の実際の距離)</span>
             <div>
-              <span id="val-slant" class="text-sm font-bold text-yellow-400 num-tabular">123.7</span><span class="text-[9px] text-yellow-600 ml-1">km</span>
+              <span id="val-slant" class="text-sm lg:text-base font-bold text-yellow-400 num-tabular">123.7</span><span class="text-[10px] text-yellow-600 ml-1">km</span>
             </div>
           </div>
         </div>
 
         <!-- クイズモード時のお知らせ -->
-        <div id="control-quiz" class="hidden bg-indigo-900/30 border border-indigo-500/50 p-2 rounded text-center">
-          <p class="text-xs font-bold text-indigo-300 mb-1"><i class="fa-solid fa-satellite-dish mr-1"></i>謎の観測地点 X からデータ受信中</p>
-          <p class="text-[10px] text-slate-300">地震計の波形からS-P時間を読み取り、<br>グラフを使って「震源距離」を当てよう！</p>
+        <div id="control-quiz" class="hidden bg-indigo-900/30 border border-indigo-500/50 p-3 rounded text-center">
+          <p class="text-sm font-bold text-indigo-300 mb-2"><i class="fa-solid fa-satellite-dish mr-1"></i>逆探知クイズ実行中</p>
+          <p class="text-[10px] lg:text-[11px] text-slate-300 leading-relaxed text-left inline-block">
+            ・地震計波形からS-P時間を読み取ろう。<br>
+            ・グラフを使って「震源距離」を割り出そう。<br>
+            <span class="text-amber-400/80 text-[9px] lg:text-[10px] mt-1 block">※中学生の学習範囲に合わせ、クイズ中は深さを 0km に固定して出題されます。</span>
+          </p>
         </div>
 
         <!-- 制御ボタン群 -->
-        <div class="flex space-x-2">
-          <button id="btn-play" class="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-2 rounded shadow transition flex items-center justify-center text-sm border border-red-500">
+        <div class="flex space-x-2 pt-1">
+          <button id="btn-play" class="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-2.5 rounded shadow transition flex items-center justify-center text-sm border border-red-500 cursor-pointer">
             <i class="fa-solid fa-play mr-1.5"></i> 地震発生
           </button>
-          <button id="btn-pause" class="hidden flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 rounded shadow transition flex items-center justify-center text-sm border border-amber-500">
+          <button id="btn-pause" class="hidden flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 rounded shadow transition flex items-center justify-center text-sm border border-amber-500 cursor-pointer">
             <i class="fa-solid fa-pause mr-1.5"></i> 一時停止
           </button>
-          <button id="btn-reset" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-3 rounded shadow transition">
+          <button id="btn-reset" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 px-4 rounded shadow transition cursor-pointer" title="リセット">
             <i class="fa-solid fa-rotate-left"></i>
           </button>
           <div class="bg-slate-900 rounded border border-slate-700 flex p-0.5 text-xs">
-            <button id="btn-spd-1" class="px-2 rounded bg-slate-700 text-white font-bold transition">x1</button>
-            <button id="btn-spd-05" class="px-2 rounded text-slate-400 font-bold hover:text-white transition">x0.5</button>
+            <button id="btn-spd-1" class="px-2.5 rounded bg-slate-700 text-white font-bold transition cursor-pointer">x1</button>
+            <button id="btn-spd-05" class="px-2.5 rounded text-slate-400 font-bold hover:text-white transition cursor-pointer">x0.5</button>
           </div>
         </div>
       </div>
 
-      <!-- データ分析エリア（スクロール可能） -->
-      <div class="flex-1 overflow-y-auto no-scrollbar flex flex-col bg-slate-900 p-2 space-y-2 relative">
+      <!-- データ分析エリア -->
+      <div class="flex-1 flex flex-col bg-slate-900 p-3 space-y-3 min-h-[400px] lg:min-h-0">
         
         <!-- 記録ボタン (探究モード用) -->
-        <button id="btn-record" class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-2 rounded shadow transition flex items-center justify-center text-sm border border-emerald-500 shrink-0">
+        <button id="btn-record" class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-2.5 rounded shadow transition flex items-center justify-center text-sm border border-emerald-500 shrink-0 cursor-pointer">
           <i class="fa-solid fa-pen-to-square mr-1.5"></i> このデータを記録する
         </button>
 
         <!-- 解答入力 (クイズモード用) -->
-        <div id="quiz-answer-area" class="hidden bg-slate-800 border border-slate-700 p-3 rounded shrink-0 space-y-2">
-          <label class="text-xs font-bold text-slate-300">観測地点 X の「震源距離」は？</label>
+        <div id="quiz-answer-area" class="hidden bg-slate-800 border border-slate-700 p-3 lg:p-4 rounded shrink-0 flex flex-col">
+          <label class="text-xs lg:text-sm font-bold text-slate-300 mb-2">観測地点 X の「震源距離」は？</label>
           <div class="flex space-x-2">
             <div class="relative flex-1">
-              <input type="number" id="input-guess" class="w-full bg-slate-950 border border-slate-600 rounded px-3 py-2 text-white num-tabular text-sm focus:outline-none focus:border-indigo-500" placeholder="数値を入力">
-              <span class="absolute right-3 top-2.5 text-xs text-slate-500">km</span>
+              <input type="number" id="input-guess" class="w-full bg-slate-950 border border-slate-600 rounded px-3 py-2 text-white num-tabular text-sm lg:text-base focus:outline-none focus:border-indigo-500" placeholder="数値を入力">
+              <span class="absolute right-3 top-2 lg:top-2.5 text-xs lg:text-sm text-slate-500">km</span>
             </div>
-            <button id="btn-answer" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 rounded transition text-sm">
+            <button id="btn-answer" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 lg:px-5 rounded transition text-sm cursor-pointer shadow">
               解答
             </button>
           </div>
-          <p id="quiz-feedback" class="text-[11px] font-bold text-center hidden"></p>
+          <p id="quiz-feedback" class="text-[10px] lg:text-xs font-bold text-center hidden mt-2"></p>
+          
+          <!-- 次の問題へボタン (初期非表示) -->
+          <button id="btn-next-quiz" class="hidden mt-3 w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded transition text-xs lg:text-sm shadow border border-emerald-500 cursor-pointer">
+            <i class="fa-solid fa-forward-step mr-1"></i> 次の観測地点へ
+          </button>
         </div>
 
         <!-- 記録テーブル -->
         <div class="bg-slate-800 rounded border border-slate-700 flex flex-col shrink-0">
-          <div class="flex justify-between items-center px-2 py-1 bg-slate-700/50 border-b border-slate-600">
-            <span class="text-[10px] font-bold text-slate-300"><i class="fa-solid fa-table mr-1"></i>観測データ</span>
-            <button onclick="clearData()" class="text-[9px] text-slate-400 hover:text-white px-1 border border-slate-600 rounded bg-slate-800 transition">クリア</button>
+          <div class="flex justify-between items-center px-3 py-1.5 bg-slate-700/50 border-b border-slate-600">
+            <span class="text-[10px] lg:text-[11px] font-bold text-slate-300"><i class="fa-solid fa-table mr-1"></i>観測データ</span>
+            <button onclick="clearData()" class="text-[9px] lg:text-[10px] text-slate-400 hover:text-white px-2 py-0.5 border border-slate-600 rounded bg-slate-800 transition cursor-pointer">クリア</button>
           </div>
-          <table class="w-full text-center text-[10px]">
+          <table class="w-full text-center text-[10px] lg:text-xs">
             <thead class="text-slate-400 border-b border-slate-700 bg-slate-900/50">
               <tr>
-                <th class="py-1 font-normal">震源距離</th>
-                <th class="py-1 font-normal text-pwave">P波(秒)</th>
-                <th class="py-1 font-normal text-swave">S波(秒)</th>
-                <th class="py-1 font-bold text-yellow-400">S-P時間</th>
+                <th class="py-1.5 font-normal">震源距離</th>
+                <th class="py-1.5 font-normal text-pwave">P波(秒)</th>
+                <th class="py-1.5 font-normal text-swave">S波(秒)</th>
+                <th class="py-1.5 font-bold text-yellow-400">S-P時間</th>
               </tr>
             </thead>
             <tbody id="data-tbody" class="text-slate-200 num-tabular divide-y divide-slate-700/50">
-              <tr><td colspan="4" class="py-2 text-slate-500">記録なし</td></tr>
+              <tr><td colspan="4" class="py-3 text-slate-500 text-[10px] lg:text-xs">記録なし</td></tr>
             </tbody>
           </table>
         </div>
 
         <!-- 比例グラフ (Canvas) -->
-        <div class="bg-slate-800 rounded border border-slate-700 flex flex-col flex-1 min-h-[160px]">
-          <div class="px-2 py-1 bg-slate-700/50 border-b border-slate-600 text-[10px] font-bold text-slate-300">
+        <div class="bg-slate-800 rounded border border-slate-700 flex flex-col flex-1 min-h-[160px] lg:min-h-[180px]">
+          <div class="px-3 py-1.5 bg-slate-700/50 border-b border-slate-600 text-[10px] lg:text-[11px] font-bold text-slate-300">
             <i class="fa-solid fa-chart-line mr-1"></i>S-P時間と距離のグラフ
           </div>
-          <div class="flex-1 relative p-1">
+          <div class="flex-1 relative p-1 lg:p-2">
             <canvas id="canvas-graph" class="w-full h-full block"></canvas>
             <div id="graph-hint" class="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <span class="bg-slate-900/80 text-[10px] text-slate-400 px-2 py-1 rounded">データを3つ以上記録すると線が出現します</span>
+              <span class="bg-slate-900/80 text-[10px] lg:text-xs text-slate-400 px-3 py-1.5 rounded text-center leading-relaxed">
+                データを3つ以上記録すると<br>線が出現します
+              </span>
             </div>
           </div>
         </div>
@@ -286,8 +345,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- Constants ---
   const V_P = 6.0; // P波の速さ km/s
   const V_S = 3.0; // S波の速さ km/s
-  const MAX_SLANT_DIST = 450; // km
-  const MAX_TIME = 150; // sec
+  const MAX_SLANT_DIST = 450; 
+  const MAX_TIME = 150; 
   const QUIZ_PASSWORD = "しんおう";
   
   const C_P = '#38bdf8'; 
@@ -296,9 +355,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- State ---
   const state = {
     mode: 'normal', // 'normal' | 'quiz'
-    dist: 120, // 震央距離 (横)
-    depth: 30, // 震源の深さ (縦)
-    slantDist: 123.7, // 震源距離 (斜め)
+    dist: 120, 
+    depth: 30, 
+    slantDist: 123.7, 
     isPlaying: false,
     isPaused: false,
     speed: 1.0, 
@@ -336,21 +395,25 @@ document.addEventListener('DOMContentLoaded', () => {
   
   const ctrlSliders = document.getElementById('control-sliders');
   const ctrlQuiz = document.getElementById('control-quiz');
+  const sliderDepthContainer = document.getElementById('slider-depth-container');
+  const quizCover = document.getElementById('quiz-cover');
   const quizAnsArea = document.getElementById('quiz-answer-area');
   const inputGuess = document.getElementById('input-guess');
   const btnAnswer = document.getElementById('btn-answer');
+  const btnNextQuiz = document.getElementById('btn-next-quiz');
   const quizFeedback = document.getElementById('quiz-feedback');
 
+  const tutorialModal = document.getElementById('tutorial-modal');
   const authModal = document.getElementById('auth-modal');
   const inputPwd = document.getElementById('input-password');
   const authError = document.getElementById('auth-error');
 
   const cvsMain = document.getElementById('canvas-main');
-  const ctxMain = cvsMain.getContext('2d');
+  const ctxMain = cvsMain.getContext('2d', { alpha: false });
   const cvsSeismo = document.getElementById('canvas-seismo');
-  const ctxSeismo = cvsSeismo.getContext('2d');
+  const ctxSeismo = cvsSeismo.getContext('2d', { alpha: false });
   const cvsGraph = document.getElementById('canvas-graph');
-  const ctxGraph = cvsGraph.getContext('2d');
+  const ctxGraph = cvsGraph.getContext('2d', { alpha: false });
 
   // --- Initialization ---
   function init() {
@@ -360,6 +423,14 @@ document.addEventListener('DOMContentLoaded', () => {
     resizeCanvases();
   }
 
+  // --- Tutorial ---
+  window.closeTutorial = function() {
+    tutorialModal.classList.add('opacity-0');
+    setTimeout(() => {
+      tutorialModal.classList.add('hidden');
+    }, 500);
+  };
+
   // --- Mode Switching & Authentication ---
   window.setMode = function(mode) {
     if (mode === 'quiz') {
@@ -367,16 +438,15 @@ document.addEventListener('DOMContentLoaded', () => {
       inputPwd.value = '';
       authError.classList.add('hidden');
       inputPwd.classList.remove('shake-error', 'border-red-500');
-      // モバイルでのレイアウト崩れを防ぐためPCのみフォーカス
       setTimeout(() => { if(window.innerWidth > 768) inputPwd.focus(); }, 100);
     } else {
       applyMode('normal');
     }
   };
 
-  document.getElementById('btn-auth-cancel').addEventListener('click', () => {
+  window.closeAuthModal = function() {
     authModal.classList.add('hidden');
-  });
+  }
 
   window.handleAuth = function(e) {
     e.preventDefault();
@@ -386,7 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       authError.classList.remove('hidden');
       inputPwd.classList.remove('shake-error');
-      void inputPwd.offsetWidth; // リフロー強制
+      void inputPwd.offsetWidth; 
       inputPwd.classList.add('shake-error', 'border-red-500');
     }
   };
@@ -399,42 +469,54 @@ document.addEventListener('DOMContentLoaded', () => {
     const tQuiz = document.getElementById('tab-quiz');
     
     if (mode === 'normal') {
-      tNorm.className = "px-3 py-1 text-xs font-bold rounded bg-blue-500 text-white shadow transition";
-      tQuiz.className = "px-3 py-1 text-xs font-bold rounded text-slate-400 hover:text-white transition";
-      ctrlSliders.classList.remove('hidden');
+      tNorm.className = "px-3 py-1.5 text-xs font-bold rounded bg-blue-500 text-white shadow transition cursor-pointer";
+      tQuiz.className = "px-3 py-1.5 text-xs font-bold rounded text-slate-400 hover:text-white transition cursor-pointer";
+      
+      sliderDepthContainer.classList.remove('hidden');
       ctrlQuiz.classList.add('hidden');
+      quizCover.classList.add('hidden');
       btnRecord.classList.remove('hidden');
       quizAnsArea.classList.add('hidden');
       legendPanel.classList.remove('hidden');
       
       updateDistances();
     } else {
-      tNorm.className = "px-3 py-1 text-xs font-bold rounded text-slate-400 hover:text-white transition";
-      tQuiz.className = "px-3 py-1 text-xs font-bold rounded bg-indigo-600 text-white shadow transition";
-      ctrlSliders.classList.add('hidden');
+      tNorm.className = "px-3 py-1.5 text-xs font-bold rounded text-slate-400 hover:text-white transition cursor-pointer";
+      tQuiz.className = "px-3 py-1.5 text-xs font-bold rounded bg-indigo-600 text-white shadow transition cursor-pointer";
+      
+      sliderDepthContainer.classList.add('hidden');
+      state.depth = 0;
+      elDepth.value = 0;
+      valDepth.innerText = 0;
+      
       ctrlQuiz.classList.remove('hidden');
+      quizCover.classList.remove('hidden');
       btnRecord.classList.add('hidden');
       quizAnsArea.classList.remove('hidden');
       legendPanel.classList.add('hidden');
       
       generateQuiz();
     }
+    
     updateTable();
     updateGraph();
     resetSim();
   }
 
   function generateQuiz() {
-    // 30刻みでランダムな斜め距離を設定 (60〜360km)
-    const options = [60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360];
+    const options = [60, 90, 120, 150, 180, 210, 240, 270, 300].filter(d => d !== state.quizTargetDist);
     state.quizTargetDist = options[Math.floor(Math.random() * options.length)];
-    state.slantDist = state.quizTargetDist; // クイズ中は斜め距離を直接指定として扱う
+    state.slantDist = state.quizTargetDist; 
     state.isQuizSolved = false;
     
     inputGuess.value = '';
     quizFeedback.classList.add('hidden');
     inputGuess.disabled = false;
     btnAnswer.disabled = false;
+    btnNextQuiz.classList.add('hidden');
+    quizCover.classList.remove('hidden'); // カバー復活
+    
+    resetSim();
   }
 
   function updateDistances() {
@@ -455,12 +537,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- Event Listeners ---
   function setupListeners() {
     elDist.addEventListener('input', () => {
+      if (state.mode === 'quiz') return;
       updateDistances();
       if (state.isPlaying) resetSim();
       drawMain();
     });
 
     elDepth.addEventListener('input', () => {
+      if (state.mode === 'quiz') return;
       updateDistances();
       if (state.isPlaying) resetSim();
       drawMain();
@@ -474,19 +558,24 @@ document.addEventListener('DOMContentLoaded', () => {
       state.isPaused = !state.isPaused;
       if (state.isPaused) {
         btnPause.innerHTML = '<i class="fa-solid fa-play mr-1.5"></i> 再開';
-        btnPause.className = "flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded shadow transition flex items-center justify-center text-sm border border-emerald-500";
+        btnPause.className = "flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded shadow transition flex items-center justify-center text-sm border border-emerald-500 cursor-pointer";
       } else {
         btnPause.innerHTML = '<i class="fa-solid fa-pause mr-1.5"></i> 一時停止';
-        btnPause.className = "flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 rounded shadow transition flex items-center justify-center text-sm border border-amber-500";
-        // 再開時に時間をワープさせないための再同期
+        btnPause.className = "flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 rounded shadow transition flex items-center justify-center text-sm border border-amber-500 cursor-pointer";
+        // 時間ジャンプ防止：再開時に現在時刻を正確に取得し直す
         requestAnimationFrame((now) => {
           state.lastTick = now;
-          loop(now);
+          state.animFrameId = requestAnimationFrame(loop);
         });
       }
     });
 
-    btnReset.addEventListener('click', resetSim);
+    btnReset.addEventListener('click', () => {
+      if (state.mode === 'quiz' && state.isQuizSolved) {
+         // クイズ正解後にリセットを押した場合は、同じ問題でシミュレーションを初期化するのみ
+      }
+      resetSim();
+    });
 
     btnSpd1.addEventListener('click', () => setSpeed(1.0));
     btnSpd05.addEventListener('click', () => setSpeed(0.5));
@@ -507,14 +596,21 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
+    // Enterキーでの解答サポート
+    inputGuess.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        btnAnswer.click();
+      }
+    });
+
     btnAnswer.addEventListener('click', () => {
       const guessStr = inputGuess.value.trim();
       
-      // 空欄や無効入力のハンドリング
       if (guessStr === '') {
         quizFeedback.classList.remove('hidden');
         quizFeedback.innerText = "⚠ 数値を入力してください";
-        quizFeedback.className = "text-[11px] font-bold text-center text-amber-400 bg-amber-900/30 p-2 rounded";
+        quizFeedback.className = "text-[10px] lg:text-xs font-bold text-center text-amber-400 bg-amber-900/30 p-2 rounded mt-2 border border-amber-500/50";
         return;
       }
 
@@ -522,19 +618,21 @@ document.addEventListener('DOMContentLoaded', () => {
       if (isNaN(guess)) {
         quizFeedback.classList.remove('hidden');
         quizFeedback.innerText = "⚠ 正しい数値を入力してください";
-        quizFeedback.className = "text-[11px] font-bold text-center text-amber-400 bg-amber-900/30 p-2 rounded";
+        quizFeedback.className = "text-[10px] lg:text-xs font-bold text-center text-amber-400 bg-amber-900/30 p-2 rounded mt-2 border border-amber-500/50";
         return;
       }
       
       quizFeedback.classList.remove('hidden');
       if (guess === state.quizTargetDist) {
-        quizFeedback.innerText = "🎉 正解！波形から正確に距離を導き出せました！";
-        quizFeedback.className = "text-[11px] font-bold text-center text-emerald-400 bg-emerald-900/30 p-2 rounded border border-emerald-500/50";
+        quizFeedback.innerHTML = "🎉 正解！波形から正確に距離を導き出せました！";
+        quizFeedback.className = "text-[10px] lg:text-xs font-bold text-center text-emerald-400 bg-emerald-900/30 p-2 rounded border border-emerald-500/50 mt-2";
         state.isQuizSolved = true;
         inputGuess.disabled = true;
         btnAnswer.disabled = true;
         
-        // 正解したらグラフにプロット
+        quizCover.classList.add('hidden');
+        btnNextQuiz.classList.remove('hidden'); // 次へボタン表示
+
         const targetSlant = state.quizTargetDist;
         const exactP = targetSlant / V_P;
         const exactS = targetSlant / V_S;
@@ -545,22 +643,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         updateTable();
         updateGraph();
-        drawMain(); // 断面図のハテナ表示を解除
+        drawMain();
       } else {
         quizFeedback.innerText = "❌ 違うみたいだ。S-P時間をもう一度よく測って、グラフの直線(y=6x)から計算してみよう。";
-        quizFeedback.className = "text-[11px] font-bold text-center text-red-400 bg-red-900/30 p-2 rounded border border-red-500/50";
+        quizFeedback.className = "text-[10px] lg:text-xs font-bold text-center text-red-400 bg-red-900/30 p-2 rounded border border-red-500/50 mt-2";
       }
     });
+
+    btnNextQuiz.addEventListener('click', generateQuiz);
   }
 
   function setSpeed(spd) {
     state.speed = spd;
     if (spd === 1.0) {
-      btnSpd1.className = "px-2 rounded bg-slate-700 text-white font-bold transition";
-      btnSpd05.className = "px-2 rounded text-slate-400 font-bold hover:text-white transition";
+      btnSpd1.className = "px-2.5 rounded bg-slate-700 text-white font-bold transition cursor-pointer";
+      btnSpd05.className = "px-2.5 rounded text-slate-400 font-bold hover:text-white transition cursor-pointer";
     } else {
-      btnSpd05.className = "px-2 rounded bg-slate-700 text-white font-bold transition";
-      btnSpd1.className = "px-2 rounded text-slate-400 font-bold hover:text-white transition";
+      btnSpd05.className = "px-2.5 rounded bg-slate-700 text-white font-bold transition cursor-pointer";
+      btnSpd1.className = "px-2.5 rounded text-slate-400 font-bold hover:text-white transition cursor-pointer";
     }
   }
 
@@ -582,7 +682,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnPlay.classList.add('hidden');
     btnPause.classList.remove('hidden');
     btnPause.innerHTML = '<i class="fa-solid fa-pause mr-1.5"></i> 一時停止';
-    btnPause.className = "flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 rounded shadow transition flex items-center justify-center text-sm border border-amber-500";
+    btnPause.className = "flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 rounded shadow transition flex items-center justify-center text-sm border border-amber-500 cursor-pointer";
     
     labelSpTime.classList.add('hidden');
     
@@ -614,9 +714,12 @@ document.addEventListener('DOMContentLoaded', () => {
   function loop(now) {
     if (!state.isPlaying || state.isPaused) return;
 
-    // タブ切り替え等でのタイムワープを防ぐためのデルタタイム上限設定 (0.1秒)
+    // タイムワープ防止ロジック
+    // タブがバックグラウンドに回った時など、now が一気に進んだ場合は0秒進行として扱う
     let dtReal = (now - state.lastTick) / 1000;
-    if (dtReal > 0.1) dtReal = 0.1; 
+    if (dtReal > 0.1) {
+      dtReal = 0; 
+    }
     
     const dtSim = dtReal * 10 * state.speed; 
     state.time += dtSim;
@@ -670,7 +773,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     displayTime.innerText = state.time.toFixed(1);
     
-    // カンニング防止：クイズ中はS-P時間を表示させない
     if (state.mode === 'quiz') {
       labelSpTime.classList.add('hidden');
       return;
@@ -692,7 +794,7 @@ document.addEventListener('DOMContentLoaded', () => {
     [cvsMain, cvsSeismo, cvsGraph].forEach(cvs => {
       if (!cvs || !cvs.parentElement) return;
       const rect = cvs.parentElement.getBoundingClientRect();
-      if (rect.width < 10 || rect.height < 10) return; // 画面回転時の幅0エラー防止
+      if (rect.width < 10 || rect.height < 10) return; 
       cvs.width = rect.width * dpr;
       cvs.height = rect.height * dpr;
       const ctx = cvs.getContext('2d');
@@ -709,51 +811,30 @@ document.addEventListener('DOMContentLoaded', () => {
     state.resizeTimer = setTimeout(resizeCanvases, 100);
   });
 
-  // 【上段】地下断面図・波のかけっこ
+  // 【上段】地下断面図
   function drawMain() {
     const w = cvsMain.width / window.devicePixelRatio;
     const h = cvsMain.height / window.devicePixelRatio;
     const ctx = ctxMain;
     
     if (w < 10 || h < 10) return;
-    ctx.clearRect(0, 0, w, h);
+    
+    // 背景塗りつぶし (alpha: false のため手動塗りが必要)
+    ctx.fillStyle = '#020617';
+    ctx.fillRect(0, 0, w, h);
 
-    // クイズモード（未正解時）のレーダー画面
     if (state.mode === 'quiz' && !state.isQuizSolved) {
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(0, 0, w, h);
-      
-      ctx.fillStyle = '#818cf8'; // indigo-400
-      ctx.font = 'bold 16px BIZ UDPGothic';
-      ctx.textAlign = 'center';
-      ctx.fillText('📡 謎の観測地点X のデータを受信中...', w/2, h/2 - 15);
-      
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '12px BIZ UDPGothic';
-      ctx.fillText('下の「地震計モニター」の波形だけを頼りに', w/2, h/2 + 20);
-      ctx.fillText('震源距離を割り出せ！', w/2, h/2 + 40);
-      
-      ctx.fillStyle = 'rgba(99, 102, 241, 0.1)';
-      ctx.beginPath(); ctx.arc(w/2, h/2, 100 + Math.sin(Date.now()/300)*10, 0, Math.PI*2); ctx.fill();
-      
-      if (state.isPlaying) {
-        ctx.fillStyle = '#ef4444';
-        ctx.font = 'bold 12px BIZ UDPGothic';
-        ctx.fillText(`記録中... ${state.time.toFixed(1)}s`, w/2, h - 20);
-      }
-      return;
+      return; // UIカバーで対応
     }
 
-    // --- 探究モード（またはクイズ正解後）の断面図描画 ---
     const padX = 30;
     const padY = 40;
     const drawW = w - padX * 2;
     const drawH = h - padY * 2;
     
-    // スケール計算 (震央最大300, 深さ最大300)
     const scale = Math.min(drawW / 300, drawH / 300); 
     const originX = padX;
-    const originY = padY; // 地表
+    const originY = padY; 
 
     // 地表ライン
     ctx.strokeStyle = '#475569';
@@ -783,9 +864,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    const targetDist = state.mode === 'quiz' ? state.quizTargetDist : state.dist;
     const hypX = originX;
     const hypY = originY + state.depth * scale;
-    const targetX = originX + (state.mode === 'quiz' ? state.quizTargetDist : state.dist) * scale;
+    const targetX = originX + targetDist * scale;
     const targetY = originY;
 
     // 斜めのひも
@@ -824,7 +906,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const midX = (hypX + targetX) / 2;
     const midY = (hypY + targetY) / 2;
-    ctx.fillStyle = '#eab308'; // yellow-500
+    ctx.fillStyle = '#eab308'; 
     ctx.font = 'bold 10px BIZ UDPGothic';
     ctx.fillText(`斜め ${state.slantDist.toFixed(1)}km`, midX, midY - 10);
     
@@ -863,8 +945,9 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.fillText('S', sx, sy);
 
       if (dP > dS) {
-        ctx.strokeStyle = 'rgba(253, 224, 71, 0.3)'; // yellow
+        ctx.strokeStyle = 'rgba(253, 224, 71, 0.3)';
         ctx.lineWidth = 6;
+        ctx.lineCap = 'butt';
         ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(px, py); ctx.stroke();
       }
     }
@@ -877,7 +960,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const ctx = ctxSeismo;
     
     if (w < 10 || h < 10) return;
-    ctx.clearRect(0, 0, w, h);
+    
+    ctx.fillStyle = '#0f172a'; // bg-slate-900
+    ctx.fillRect(0, 0, w, h);
 
     const padX = 30;
     const padY = 20;
@@ -924,7 +1009,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.strokeStyle = '#334155'; ctx.beginPath(); ctx.moveTo(originX, originY); ctx.lineTo(originX + drawW, originY); ctx.stroke();
 
     if (state.seismoData.length > 0) {
-      ctx.strokeStyle = '#10b981'; // emerald-500
+      ctx.strokeStyle = '#10b981'; 
       ctx.lineWidth = 1.5;
       ctx.lineJoin = 'round';
       ctx.beginPath();
@@ -952,7 +1037,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- Data Table & Graph ---
   function updateTable() {
     if (state.records.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="py-2 text-slate-500 text-[10px]">記録なし</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" class="py-3 text-slate-500 text-xs">記録なし</td></tr>';
       graphHint.classList.remove('hidden');
       return;
     }
@@ -974,9 +1059,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const ctx = ctxGraph;
     
     if (w < 10 || h < 10) return;
-    ctx.clearRect(0, 0, w, h);
+    
+    ctx.fillStyle = '#1e293b'; // bg-slate-800
+    ctx.fillRect(0, 0, w, h);
 
-    const padL = 30, padR = 10, padT = 10, padB = 20;
+    const padL = 30, padR = 15, padT = 20, padB = 25;
     const drawW = w - padL - padR;
     const drawH = h - padT - padB;
     
@@ -994,16 +1081,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     ctx.lineWidth = 1;
-    ctx.fillStyle = '#64748b'; ctx.font = '9px BIZ UDPGothic';
+    ctx.fillStyle = '#94a3b8'; ctx.font = '10px BIZ UDPGothic';
     
+    // Y軸ラベル
+    ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+    ctx.fillText('距離(km)', originX + 20, padT - 5);
+    
+    // X軸ラベル
+    ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.fillText('S-P時間(秒)', originX + drawW, originY + 12);
+
+    ctx.fillStyle = '#64748b'; ctx.font = '9px BIZ UDPGothic';
     for(let d=0; d<=maxY; d+=100) {
       const pt = getPt(0, d);
-      ctx.strokeStyle = '#1e293b'; ctx.beginPath(); ctx.moveTo(pt.x, pt.y); ctx.lineTo(pt.x + drawW, pt.y); ctx.stroke();
+      ctx.strokeStyle = '#334155'; ctx.beginPath(); ctx.moveTo(pt.x, pt.y); ctx.lineTo(pt.x + drawW, pt.y); ctx.stroke();
       ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-      ctx.fillText(d, pt.x - 4, pt.y);
+      if (d > 0) ctx.fillText(d, pt.x - 4, pt.y);
     }
     
-    ctx.strokeStyle = '#475569';
+    ctx.strokeStyle = '#64748b'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(originX, originY); ctx.lineTo(originX + drawW, originY); ctx.stroke(); 
     ctx.beginPath(); ctx.moveTo(originX, originY); ctx.lineTo(originX, originY - drawH); ctx.stroke(); 
 
@@ -1019,8 +1115,8 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.stroke();
       ctx.setLineDash([]);
       
-      ctx.fillStyle = '#fde047'; ctx.font = '10px BIZ UDPGothic'; ctx.textAlign = 'left';
-      ctx.fillText('震源距離 = 6 × S-P時間', p0.x + 10, padT + 10);
+      ctx.fillStyle = '#fde047'; ctx.font = 'bold 10px BIZ UDPGothic'; ctx.textAlign = 'left';
+      ctx.fillText('距離 = 6 × S-P時間', p0.x + 10, padT + 10);
     }
 
     state.records.forEach(r => {
